@@ -23,11 +23,10 @@ def rotate_image(cv_img: np.ndarray, angle: int) -> np.ndarray:
 
 def enhance_for_ocr(cv_img: np.ndarray) -> np.ndarray:
     """
-    Aumenta a resolução em 3x e aplica filtro de nitidez (sharpen)
-    para definir as bordas de números pequenos ou com baixo contraste.
+    Aplica escala 3x, Equalização Adaptativa de Histograma (CLAHE) para remover sombras,
+    filtro de nitidez (sharpen) e Binarização em Preto e Branco puro (Otsu).
     """
     height, width = cv_img.shape[:2]
-    # Amplia 3x com interpolação cúbica
     scaled = cv2.resize(cv_img, (width * 3, height * 3), interpolation=cv2.INTER_CUBIC)
 
     if len(scaled.shape) == 3:
@@ -35,12 +34,16 @@ def enhance_for_ocr(cv_img: np.ndarray) -> np.ndarray:
     else:
         gray = scaled
 
-    # Matriz para reforço de nitidez nas bordas dos caracteres
+    # CLAHE: Melhora o contraste local eliminando variações de iluminação e sombras
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    contrast = clahe.apply(gray)
+
+    # Nitidez nas bordas dos números
     kernel = np.array([[0, -1, 0],
                        [-1, 5, -1],
                        [0, -1, 0]])
-    sharpened = cv2.filter2D(gray, -1, kernel)
+    sharpened = cv2.filter2D(contrast, -1, kernel)
 
-    # Threshold de Otsu para binarização limpa
+    # Binarização extrema: Filtra tudo para Preto (0) e Branco (255)
     _, thresh = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return thresh

@@ -26,12 +26,22 @@ def extract_numbers_from_text(raw_text: str) -> list[str]:
 
     return candidates
 
+def get_smart_angle_order(width: int, height: int) -> list[int]:
+    """
+    Se a seleção for mais alta que larga (vertical), testa 270° e 90° primeiro.
+    Se for mais larga que alta (horizontal), testa 0° e 180° primeiro.
+    """
+    if height > width:
+        return [270, 90, 0, 180]
+    return [0, 180, 270, 90]
+
 def process_pipeline(image: Image.Image) -> str:
     cv_base = pil_to_cv2(image)
-    all_angles = [0, 90, 180, 270]
+    height, width = cv_base.shape[:2]
+    ordered_angles = get_smart_angle_order(width, height)
 
-    # 1. Tentar Código de Barras silenciosamente
-    for angle in all_angles:
+    # 1. Leitura direta via Código de Barras (Ultra-rápido)
+    for angle in ordered_angles:
         rotated_cv = rotate_image(cv_base, angle)
         rotated_pil = cv2_to_pil(rotated_cv)
 
@@ -39,30 +49,42 @@ def process_pipeline(image: Image.Image) -> str:
         if barcode_result:
             clean_barcode = re.sub(r"\D", "", barcode_result)
             if len(clean_barcode) >= OCR_MIN_DIGITS:
-                logger.info(f"✅ Código de barras detectado: {clean_barcode}")
+                logger.info(f"✅ Código de barras detectado ({angle}°): {clean_barcode}")
                 return clean_barcode
 
-    # 2. OCR Silencioso com Early Exit (Interrompe no primeiro match de 44 dígitos)
+    # 2. Passagem Rápida (OCR na imagem tratada com a rotação mais provável)
     best_candidate = ""
 
-    for angle in all_angles:
+    for angle in ordered_angles:
         rotated_cv = rotate_image(cv_base, angle)
         enhanced_cv = enhance_for_ocr(rotated_cv)
+        enhanced_pil = cv2_to_pil(enhanced_cv)
 
-        # Testa na imagem tratada (3x + Sharpen) e na imagem original rotacionada
-        for img_to_ocr in [cv2_to_pil(enhanced_cv), cv2_to_pil(rotated_cv)]:
-            for psm in [6, 7]:
-                raw_text = run_ocr(img_to_ocr, psm=psm)
-                candidates = extract_numbers_from_text(raw_text)
+        # PSM 6: Bloco de texto / linha única
+        raw_text = run_ocr(enhanced_pil, psm=6)
+        candidates = extract_numbers_from_text(raw_text)
 
-                for candidate in candidates:
-                    # Encontrou a chave completa de 44 dígitos: encerra a busca imediatamente
-                    if len(candidate) == DANFE_KEY_LENGTH:
-                        logger.info(f"🎯 Chave de 44 dígitos identificada com sucesso: {candidate}")
-                        return candidate
+        for candidate in candidates:
+            if len(candidate) == DANFE_KEY_LENGTH:
+                logger.info(f"🎯 Chave de 44 dígitos identificada ({angle}°): {candidate}")
+                return candidate
 
-                    if len(candidate) > len(best_candidate):
-                        best_candidate = candidate
+            if len(candidate) > len(best_candidate):
+                best_candidate = candidate
+
+    # 3. Fallback (Apenas se a passagem rápida não encontrou os 44 dígitos)
+    if not best_candidate or len(best_candidate) < DANFE_KEY_LENGTH:
+        for angle in ordered_angles:
+            rotated_cv = rotate_image(cv_base, angle)
+            raw_text = run_ocr(cv2_to_pil(rotated_cv), psm=7)
+            candidates = extract_numbers_from_text(raw_text)
+
+            for candidate in candidates:
+                if len(candidate) == DANFE_KEY_LENGTH:
+                    logger.info(f"🎯 Chave identificada via Fallback ({angle}°): {candidate}")
+                    return candidate
+                if len(candidate) > len(best_candidate):
+                    best_candidate = candidate
 
     if best_candidate:
         logger.info(f"🎯 Resultado extraído ({len(best_candidate)} dígitos): {best_candidate}")
