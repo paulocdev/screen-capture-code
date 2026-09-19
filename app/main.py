@@ -1,4 +1,7 @@
+# app/main.py
+
 import sys
+import ctypes
 from PyQt6.QtWidgets import QApplication
 from app.capture.overlay import SelectionOverlay
 from app.capture.screen_capture import capture_region
@@ -8,10 +11,17 @@ from app.hotkey.listener import GlobalHotkeyListener
 from app.tray.system_tray import ScreenReaderTray
 from app.utils.logger import logger
 
+# Garante que o Windows identifique a aplicação como "Code Extract" nas notificações Toast
+try:
+    myappid = "codeextract.app.v1"
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except Exception:
+    pass
+
 class ScreenReaderApp:
     def __init__(self):
         self.app = QApplication(sys.argv)
-        # Impede que a aplicação feche quando a janela de overlay for oculta
+        self.app.setApplicationName("Code Extract")
         self.app.setQuitOnLastWindowClosed(False)
 
         # 1. Overlay de seleção
@@ -29,7 +39,7 @@ class ScreenReaderApp:
         self.hotkey_listener.hotkey_triggered.connect(self.overlay.show_overlay)
         self.hotkey_listener.start()
 
-        logger.info("🚀 Screen Reader pronto e ativo na System Tray! Pressione Ctrl + Shift + C")
+        logger.info("🚀 Code Extract pronto e ativo na System Tray! Pressione Ctrl + Shift + C")
 
     def handle_region_selected(self, x1: int, y1: int, x2: int, y2: int):
         img = capture_region(x1, y1, x2, y2)
@@ -42,7 +52,7 @@ class ScreenReaderApp:
             self.tray.notify_warning("Nenhum código numérico foi identificado.")
 
     def shutdown(self):
-        logger.info("Encerrando Screen Reader...")
+        logger.info("Encerrando Code Extract...")
         self.hotkey_listener.stop()
         self.app.quit()
 

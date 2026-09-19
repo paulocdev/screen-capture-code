@@ -1,3 +1,5 @@
+# app/tray/system_tray.py
+
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QPixmap, QColor, QPainter
 from PyQt6.QtCore import pyqtSignal
@@ -13,7 +15,7 @@ def create_default_icon() -> QIcon:
     painter.setBrush(QColor(0, 120, 215))
     painter.setPen(QColor(255, 255, 255))
     painter.drawRoundedRect(2, 2, 28, 28, 6, 6)
-    painter.drawText(pixmap.rect(), 0x0084, "SR") # Centralizado
+    painter.drawText(pixmap.rect(), 0x0084, "CE") # CE = Code Extract
     painter.end()
     return QIcon(pixmap)
 
@@ -24,9 +26,8 @@ class ScreenReaderTray(QSystemTrayIcon):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setIcon(create_default_icon())
-        self.setToolTip("Screen Reader — Rodando em segundo plano")
+        self.setToolTip("Code Extract — Rodando em segundo plano")
 
-        # Menu de contexto (Clique com botão direito no ícone)
         menu = QMenu()
         
         capture_action = menu.addAction("Capturar (Ctrl+Shift+C)")
@@ -40,10 +41,9 @@ class ScreenReaderTray(QSystemTrayIcon):
         self.setContextMenu(menu)
 
     def notify_success(self, text: str):
-        """Exibe uma notificação estilo Toast no Windows."""
         preview = text[:30] + "..." if len(text) > 30 else text
         self.showMessage(
-            "Código Copiado!",
+            "Code Extract",
             f"Copiado para o Clipboard: {preview}",
             QSystemTrayIcon.MessageIcon.Information,
             2000
@@ -51,7 +51,7 @@ class ScreenReaderTray(QSystemTrayIcon):
 
     def notify_warning(self, message: str):
         self.showMessage(
-            "Screen Reader",
+            "Code Extract",
             message,
             QSystemTrayIcon.MessageIcon.Warning,
             2000
