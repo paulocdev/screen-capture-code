@@ -1,5 +1,3 @@
-# app/config.py
-
 HOTKEY = "<ctrl>+<shift>+c"
 
 MIN_SELECTION_WIDTH = 10

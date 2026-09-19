@@ -1,5 +1,3 @@
-# app/extraction/preprocessing.py
-
 import cv2
 import numpy as np
 from PIL import Image
@@ -23,8 +21,8 @@ def rotate_image(cv_img: np.ndarray, angle: int) -> np.ndarray:
 
 def enhance_for_ocr(cv_img: np.ndarray) -> np.ndarray:
     """
-    Aplica escala 3x, Equalização Adaptativa de Histograma (CLAHE) para remover sombras,
-    filtro de nitidez (sharpen) e Binarização em Preto e Branco puro (Otsu).
+    Aplica escala 3x, filtro Unsharp Mask para desembaçar texto desfocado
+    e binarização de Otsu.
     """
     height, width = cv_img.shape[:2]
     scaled = cv2.resize(cv_img, (width * 3, height * 3), interpolation=cv2.INTER_CUBIC)
@@ -34,16 +32,10 @@ def enhance_for_ocr(cv_img: np.ndarray) -> np.ndarray:
     else:
         gray = scaled
 
-    # CLAHE: Melhora o contraste local eliminando variações de iluminação e sombras
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    contrast = clahe.apply(gray)
+    # Unsharp Mask: remove o embaçado/desfocado de câmeras
+    gaussian = cv2.GaussianBlur(gray, (0, 0), 2.0)
+    unsharp = cv2.addWeighted(gray, 2.0, gaussian, -1.0, 0)
 
-    # Nitidez nas bordas dos números
-    kernel = np.array([[0, -1, 0],
-                       [-1, 5, -1],
-                       [0, -1, 0]])
-    sharpened = cv2.filter2D(contrast, -1, kernel)
-
-    # Binarização extrema: Filtra tudo para Preto (0) e Branco (255)
-    _, thresh = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # Binarização P&B pura
+    _, thresh = cv2.threshold(unsharp, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return thresh
