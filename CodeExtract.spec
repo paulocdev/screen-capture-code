@@ -5,7 +5,7 @@ a = Analysis(
     ['app/main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('icone.ico', '.')],
     hiddenimports=['pynput.keyboard._win32', 'pynput.mouse._win32'],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['icone.ico'],
 )
